@@ -41,15 +41,13 @@ class _LoginScreenState extends State<LoginScreen> {
     // Simulate API call with a delay
     Future.delayed(const Duration(seconds: 2), () {
       // In a real app, you would call your auth service here
-      // For now, we'll just navigate to the OTP verification screen
 
       setState(() {
         _isLoading = false;
       });
 
       // Navigate to the OTP verification screen
-      // For now, we'll just go to the home screen
-      context.go('/home');
+      context.push('/verify-otp', extra: {'phoneNumber': phoneNumber});
     });
   }
 

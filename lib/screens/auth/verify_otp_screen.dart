@@ -117,21 +117,51 @@ class _VerifyOTPScreenState extends State<VerifyOTPScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Verify Phone Number')),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text('Verify Phone Number'),
+        centerTitle: true,
+        elevation: 0,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const SizedBox(height: 40),
+
+            // Verification icon
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.phone_android,
+                size: 40,
+                color: AppTheme.primaryColor,
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Title
             const Text(
               'Verification Code',
               style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
             ),
+
             const SizedBox(height: 8),
+
+            // Subtitle
             Text(
               'We have sent a verification code to ${widget.phoneNumber}',
               style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+              textAlign: TextAlign.center,
             ),
+
             const SizedBox(height: 32),
 
             // OTP Input fields
@@ -173,7 +203,11 @@ class _VerifyOTPScreenState extends State<VerifyOTPScreen> {
             // Verify button
             CustomButton(
               text: 'Verify',
-              onPressed: _isVerifying ? () {} : () => _verifyOTP(),
+              onPressed: () {
+                if (!_isVerifying) {
+                  _verifyOTP();
+                }
+              },
               isLoading: _isVerifying,
             ),
 

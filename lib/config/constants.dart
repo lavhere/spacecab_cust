@@ -4,8 +4,8 @@ class AppConstants {
   static const String appVersion = '1.0.0';
   static const String appBuildNumber = '1';
 
-  // API Keys
-  static const String googleMapsApiKey = 'YOUR_GOOGLE_MAPS_API_KEY';
+  //API Keys
+  static const String googleMapsApiKey = '';
 
   // Default Location (San Francisco)
   static const double defaultLatitude = 37.7749;

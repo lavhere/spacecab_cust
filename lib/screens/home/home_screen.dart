@@ -121,7 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
         phoneNumber: '+1234567890',
         rating: 4.8,
         totalRides: 120,
-        photoUrl: 'https://randomuser.me/api/portraits/men/1.jpg',
+        photoUrl: 'https://ui-avatars.com/api/?name=John+Doe',
         vehicle: VehicleInfo(
           model: 'Toyota Camry',
           color: 'White',
@@ -140,7 +140,7 @@ class _HomeScreenState extends State<HomeScreen> {
         phoneNumber: '+0987654321',
         rating: 4.9,
         totalRides: 200,
-        photoUrl: 'https://randomuser.me/api/portraits/women/1.jpg',
+        photoUrl: 'https://ui-avatars.com/api/?name=Jane+Smith',
         vehicle: VehicleInfo(
           model: 'Honda Civic',
           color: 'Black',
@@ -183,6 +183,83 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(color: AppTheme.primaryColor),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  const CircleAvatar(
+                    radius: 30,
+                    backgroundColor: Colors.white,
+                    child: Icon(Icons.person, size: 35, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Guest User',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.headlineSmall?.copyWith(color: Colors.white),
+                  ),
+                  Text(
+                    'guest@example.com',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: Colors.white70),
+                  ),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.home),
+              title: const Text('Home'),
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.history),
+              title: const Text('Ride History'),
+              onTap: () {
+                context.push('/ride-history');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.payment),
+              title: const Text('Payments'),
+              onTap: () {
+                context.push('/payment-selection');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.support_agent),
+              title: const Text('Support'),
+              onTap: () {
+                context.push('/support');
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.settings),
+              title: const Text('Settings'),
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: const Text('Logout'),
+              onTap: () {
+                context.push('/login');
+              },
+            ),
+          ],
+        ),
+      ),
       body: Stack(
         children: [
           // Google Map
@@ -247,7 +324,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.search, color: AppTheme.textSecondaryColor),
+                      // Navigation drawer button
+                      Builder(
+                        builder:
+                            (context) => IconButton(
+                              icon: const Icon(Icons.menu),
+                              color: AppTheme.textSecondaryColor,
+                              onPressed: () {
+                                Scaffold.of(context).openDrawer();
+                              },
+                            ),
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
@@ -257,6 +344,17 @@ class _HomeScreenState extends State<HomeScreen> {
                             color: AppTheme.textSecondaryColor,
                           ),
                         ),
+                      ),
+                      // Search icon
+                      Icon(Icons.search, color: AppTheme.textSecondaryColor),
+                      const SizedBox(width: 12),
+                      // Account button
+                      IconButton(
+                        icon: const Icon(Icons.account_circle),
+                        color: AppTheme.textSecondaryColor,
+                        onPressed: () {
+                          context.push('/profile');
+                        },
                       ),
                     ],
                   ),

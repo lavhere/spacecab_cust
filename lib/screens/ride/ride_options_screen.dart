@@ -299,7 +299,7 @@ class _RideOptionsScreenState extends State<RideOptionsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                              "\$${fare.toStringAsFixed(2)}",
+                              "₹${fare.toStringAsFixed(2)}",
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -368,7 +368,7 @@ class _RideOptionsScreenState extends State<RideOptionsScreen> {
                   text: "Request ${_rideTypes[_selectedRideTypeIndex].name}",
                   onPressed: () {
                     // Navigate to ride confirmation screen
-                    context.push('/ride_confirmation');
+                    context.push('/ride-confirmation');
                   },
                 ),
               ],

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../../config/theme.dart';
 import '../../models/driver_model.dart';
@@ -10,7 +11,16 @@ import '../../utils/constants.dart';
 import '../../widgets/custom_button.dart';
 
 class RideTrackingScreen extends StatefulWidget {
-  const RideTrackingScreen({Key? key}) : super(key: key);
+  final LocationModel pickupLocation;
+  final LocationModel dropoffLocation;
+  final DriverModel driver;
+
+  const RideTrackingScreen({
+    Key? key,
+    required this.pickupLocation,
+    required this.dropoffLocation,
+    required this.driver,
+  }) : super(key: key);
 
   @override
   State<RideTrackingScreen> createState() => _RideTrackingScreenState();
@@ -18,212 +28,137 @@ class RideTrackingScreen extends StatefulWidget {
 
 class _RideTrackingScreenState extends State<RideTrackingScreen> {
   final Completer<GoogleMapController> _mapController = Completer();
-
-  // Mock data
-  final String _pickupAddress = "123 Main St, San Francisco, CA";
-  final String _dropoffAddress = "456 Market St, San Francisco, CA";
-  final int _estimatedTime = 12; // in minutes
-  DriverModel _driver = DriverModel(
-    id: '1',
-    name: 'John Doe',
-    phoneNumber: '+1234567890',
-    rating: 4.8,
-    totalRides: 120,
-    photoUrl: 'https://randomuser.me/api/portraits/men/1.jpg',
-    vehicle: VehicleInfo(
-      model: 'Toyota Camry',
-      color: 'White',
-      licensePlate: 'ABC123',
-      type: 'sedan',
-    ),
-    currentLocation: LocationModel(
-      latitude: AppConstants.defaultLatitude - 0.003,
-      longitude: AppConstants.defaultLongitude - 0.003,
-      address: "123 Main St",
-    ),
-  );
-
-  // Ride status
-  String _rideStatus = "Driver is arriving"; // or "In Progress", "Almost there"
-  double _rideProgress = 0.3; // 0.0 to 1.0
-
-  // Markers for the map
   Set<Marker> _markers = {};
-  // Polyline for the route
   Set<Polyline> _polylines = {};
-
-  // Initial camera position (San Francisco)
-  final CameraPosition _initialCameraPosition = CameraPosition(
-    target: LatLng(AppConstants.defaultLatitude, AppConstants.defaultLongitude),
-    zoom: 14.0,
-  );
-
-  late Timer _rideProgressTimer;
+  bool _isDriverArrived = false;
+  bool _isEnRoute = false;
+  String _estimatedTime = '5 mins';
+  Timer? _locationUpdateTimer;
 
   @override
   void initState() {
     super.initState();
-
-    // Add markers for pickup, dropoff, and driver
-    _addMarkers();
-
-    // Add a simulated route
-    _addRoute();
-
-    // Simulate ride progress
-    _rideProgressTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
-      setState(() {
-        if (_rideProgress < 0.5) {
-          _rideProgress += 0.1;
-          _rideStatus = "Driver is arriving";
-        } else if (_rideProgress < 0.8) {
-          _rideProgress += 0.1;
-          _rideStatus = "In Progress";
-        } else if (_rideProgress < 1.0) {
-          _rideProgress += 0.1;
-          _rideStatus = "Almost there";
-        } else {
-          _rideProgressTimer.cancel();
-          _showRideCompletedDialog();
-        }
-
-        // Update driver position (simulate movement)
-        _updateDriverPosition();
-      });
-    });
+    _initializeMap();
+    _startLocationUpdates();
   }
 
   @override
   void dispose() {
-    _rideProgressTimer.cancel();
+    _locationUpdateTimer?.cancel();
     super.dispose();
   }
 
-  void _addMarkers() {
+  Future<void> _initializeMap() async {
+    await _mapController.future;
+    _updateMapMarkers();
+  }
+
+  void _startLocationUpdates() {
+    // In a real app, this would be connected to a real-time location service
+    _locationUpdateTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      _updateMapMarkers();
+    });
+  }
+
+  void _updateMapMarkers() {
     setState(() {
-      // Pickup marker
+      _markers.clear();
+      _polylines.clear();
+
+      // Add driver marker
+      _markers.add(
+        Marker(
+          markerId: const MarkerId('driver'),
+          position: LatLng(
+            widget.driver.currentLocation!.latitude,
+            widget.driver.currentLocation!.longitude,
+          ),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueOrange,
+          ),
+          infoWindow: InfoWindow(title: 'Driver', snippet: widget.driver.name),
+        ),
+      );
+
+      // Add pickup marker
       _markers.add(
         Marker(
           markerId: const MarkerId('pickup'),
           position: LatLng(
-            AppConstants.defaultLatitude,
-            AppConstants.defaultLongitude,
+            widget.pickupLocation.latitude,
+            widget.pickupLocation.longitude,
           ),
           icon: BitmapDescriptor.defaultMarkerWithHue(
             BitmapDescriptor.hueGreen,
           ),
-          infoWindow: const InfoWindow(title: 'Pickup'),
+          infoWindow: const InfoWindow(title: 'Pickup Location'),
         ),
       );
 
-      // Dropoff marker
+      // Add dropoff marker
       _markers.add(
         Marker(
           markerId: const MarkerId('dropoff'),
           position: LatLng(
-            AppConstants.defaultLatitude + 0.01,
-            AppConstants.defaultLongitude + 0.01,
+            widget.dropoffLocation.latitude,
+            widget.dropoffLocation.longitude,
           ),
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-          infoWindow: const InfoWindow(title: 'Dropoff'),
+          infoWindow: const InfoWindow(title: 'Dropoff Location'),
         ),
       );
 
-      // Driver marker
-      _markers.add(
-        Marker(
-          markerId: const MarkerId('driver'),
-          position: LatLng(
-            _driver.currentLocation!.latitude,
-            _driver.currentLocation!.longitude,
+      // Add route polyline
+      if (_isEnRoute) {
+        _polylines.add(
+          Polyline(
+            polylineId: const PolylineId('route'),
+            points: [
+              LatLng(
+                widget.pickupLocation.latitude,
+                widget.pickupLocation.longitude,
+              ),
+              LatLng(
+                widget.dropoffLocation.latitude,
+                widget.dropoffLocation.longitude,
+              ),
+            ],
+            color: AppTheme.primaryColor,
+            width: 5,
           ),
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-            BitmapDescriptor.hueAzure,
-          ),
-          infoWindow: InfoWindow(title: 'Driver: ${_driver.name}'),
-        ),
-      );
-    });
-  }
-
-  void _addRoute() {
-    // In a real app, we would get the actual route from a directions API
-    // For now, let's create a simple straight line
-    List<LatLng> routePoints = [
-      LatLng(
-        _driver.currentLocation!.latitude,
-        _driver.currentLocation!.longitude,
-      ),
-      LatLng(AppConstants.defaultLatitude, AppConstants.defaultLongitude),
-      LatLng(
-        AppConstants.defaultLatitude + 0.01,
-        AppConstants.defaultLongitude + 0.01,
-      ),
-    ];
-
-    setState(() {
-      _polylines.add(
-        Polyline(
-          polylineId: const PolylineId('route'),
-          points: routePoints,
-          color: AppTheme.primaryColor,
-          width: 4,
-        ),
-      );
-    });
-  }
-
-  void _updateDriverPosition() {
-    // In a real app, this would come from real-time location updates
-    // For simplicity, let's move the driver closer to the pickup/dropoff based on progress
-    double newLat, newLng;
-
-    if (_rideProgress < 0.5) {
-      // Moving toward pickup
-      newLat = _driver.currentLocation!.latitude + 0.001;
-      newLng = _driver.currentLocation!.longitude + 0.001;
-    } else {
-      // Moving toward dropoff
-      newLat = AppConstants.defaultLatitude + (_rideProgress - 0.5) * 0.02;
-      newLng = AppConstants.defaultLongitude + (_rideProgress - 0.5) * 0.02;
-    }
-
-    // Create a new location model
-    LocationModel newLocation = LocationModel(
-      latitude: newLat,
-      longitude: newLng,
-      address: _driver.currentLocation!.address,
-    );
-
-    // Update driver using copyWith since currentLocation is final
-    _driver = _driver.copyWith(currentLocation: newLocation);
-
-    // Update driver marker
-    setState(() {
-      _markers.removeWhere((marker) => marker.markerId.value == 'driver');
-      _markers.add(
-        Marker(
-          markerId: const MarkerId('driver'),
-          position: LatLng(
-            _driver.currentLocation!.latitude,
-            _driver.currentLocation!.longitude,
-          ),
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-            BitmapDescriptor.hueAzure,
-          ),
-          infoWindow: InfoWindow(title: 'Driver: ${_driver.name}'),
-        ),
-      );
-    });
-
-    // Update the camera position to follow the driver
-    if (_mapController.isCompleted) {
-      _mapController.future.then((controller) {
-        controller.animateCamera(
-          CameraUpdate.newLatLng(LatLng(newLat, newLng)),
         );
-      });
-    }
+      } else {
+        _polylines.add(
+          Polyline(
+            polylineId: const PolylineId('route'),
+            points: [
+              LatLng(
+                widget.driver.currentLocation!.latitude,
+                widget.driver.currentLocation!.longitude,
+              ),
+              LatLng(
+                widget.pickupLocation.latitude,
+                widget.pickupLocation.longitude,
+              ),
+            ],
+            color: AppTheme.primaryColor,
+            width: 5,
+          ),
+        );
+      }
+    });
+  }
+
+  void _simulateDriverArrival() {
+    setState(() {
+      _isDriverArrived = true;
+    });
+  }
+
+  void _startRide() {
+    setState(() {
+      _isEnRoute = true;
+    });
   }
 
   void _showRideCompletedDialog() {
@@ -315,19 +250,25 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // Map view
+          // Map
           GoogleMap(
-            initialCameraPosition: _initialCameraPosition,
-            mapType: MapType.normal,
+            initialCameraPosition: CameraPosition(
+              target: LatLng(
+                widget.pickupLocation.latitude,
+                widget.pickupLocation.longitude,
+              ),
+              zoom: 15,
+            ),
             markers: _markers,
             polylines: _polylines,
-            onMapCreated: (GoogleMapController controller) {
-              _mapController.complete(controller);
-            },
             myLocationEnabled: true,
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
+            mapToolbarEnabled: false,
             compassEnabled: false,
+            onMapCreated: (GoogleMapController controller) {
+              _mapController.complete(controller);
+            },
           ),
 
           // Back button
@@ -354,7 +295,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
             ),
           ),
 
-          // Bottom sheet with ride details
+          // Bottom sheet
           Positioned(
             bottom: 0,
             left: 0,
@@ -378,207 +319,77 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Progress indicator
-                  LinearProgressIndicator(
-                    value: _rideProgress,
-                    backgroundColor: Colors.grey.shade200,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      AppTheme.primaryColor,
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Ride status
-                  Text(
-                    _rideStatus,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-
-                  const SizedBox(height: 4),
-
-                  // ETA
-                  Text(
-                    "ETA: ${(_estimatedTime * (1 - _rideProgress)).ceil()} mins",
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppTheme.textSecondaryColor,
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
                   // Driver info
                   Row(
                     children: [
-                      // Driver photo (placeholder)
-                      Container(
-                        width: 50,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade300,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Center(
-                          child: Icon(
-                            Icons.person,
-                            color: Colors.white,
-                            size: 30,
-                          ),
-                        ),
+                      CircleAvatar(
+                        radius: 24,
+                        backgroundImage: NetworkImage(widget.driver.photoUrl),
                       ),
-
                       const SizedBox(width: 16),
-
-                      // Driver details
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              _driver.name,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              widget.driver.name,
+                              style: Theme.of(context).textTheme.titleLarge,
                             ),
-                            Text(
-                              "${_driver.vehicle.color} ${_driver.vehicle.model} · ${_driver.vehicle.licensePlate}",
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: AppTheme.textSecondaryColor,
-                              ),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.star,
+                                  size: 16,
+                                  color: Colors.amber[700],
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  widget.driver.rating.toString(),
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                              ],
                             ),
                           ],
                         ),
                       ),
-
-                      // Contact buttons
-                      Row(
-                        children: [
-                          // Message button
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
-                              shape: BoxShape.circle,
-                            ),
-                            child: IconButton(
-                              icon: const Icon(Icons.message),
-                              iconSize: 20,
-                              color: AppTheme.primaryColor,
-                              onPressed: () {
-                                // Handle message
-                              },
-                            ),
-                          ),
-
-                          const SizedBox(width: 8),
-
-                          // Call button
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
-                              shape: BoxShape.circle,
-                            ),
-                            child: IconButton(
-                              icon: const Icon(Icons.phone),
-                              iconSize: 20,
-                              color: AppTheme.primaryColor,
-                              onPressed: () {
-                                // Handle call
-                              },
-                            ),
-                          ),
-                        ],
+                      Text(
+                        _estimatedTime,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(color: AppTheme.primaryColor),
                       ),
                     ],
                   ),
 
                   const SizedBox(height: 16),
 
-                  // Location info
+                  // Vehicle info
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
+                      color: Colors.grey[100],
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Column(
+                    child: Row(
                       children: [
-                        // Pickup location
-                        Row(
-                          children: [
-                            Container(
-                              width: 24,
-                              height: 24,
-                              decoration: BoxDecoration(
-                                color: Colors.green.withOpacity(0.2),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Center(
-                                child: Icon(
-                                  Icons.circle,
-                                  color: Colors.green,
-                                  size: 10,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                _pickupAddress,
-                                style: const TextStyle(fontSize: 14),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
+                        Icon(
+                          Icons.directions_car,
+                          color: AppTheme.primaryColor,
                         ),
-
-                        Padding(
-                          padding: const EdgeInsets.only(left: 12),
-                          child: Container(
-                            width: 1,
-                            height: 16,
-                            color: Colors.grey.shade300,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${widget.driver.vehicle.model} (${widget.driver.vehicle.color})',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              Text(
+                                widget.driver.vehicle.licensePlate,
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                            ],
                           ),
-                        ),
-
-                        // Dropoff location
-                        Row(
-                          children: [
-                            Container(
-                              width: 24,
-                              height: 24,
-                              decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.2),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Center(
-                                child: Icon(
-                                  Icons.location_on,
-                                  color: Colors.red,
-                                  size: 12,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                _dropoffAddress,
-                                style: const TextStyle(fontSize: 14),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
                         ),
                       ],
                     ),
@@ -587,69 +398,30 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
                   const SizedBox(height: 16),
 
                   // Action buttons
-                  Row(
-                    children: [
-                      // SOS button
-                      Expanded(
-                        flex: 1,
-                        child: CustomButton(
-                          text: "SOS",
-                          isOutlined: true,
-                          backgroundColor: Colors.white,
-                          textColor: Colors.red,
-                          icon: Icons.sos,
-                          onPressed: () {
-                            // Show SOS options
-                            showModalBottomSheet(
-                              context: context,
-                              builder:
-                                  (context) => Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      ListTile(
-                                        leading: const Icon(
-                                          Icons.local_police,
-                                          color: Colors.blue,
-                                        ),
-                                        title: const Text('Contact Police'),
-                                        onTap: () => Navigator.pop(context),
-                                      ),
-                                      ListTile(
-                                        leading: const Icon(
-                                          Icons.medical_services,
-                                          color: Colors.red,
-                                        ),
-                                        title: const Text('Medical Emergency'),
-                                        onTap: () => Navigator.pop(context),
-                                      ),
-                                      ListTile(
-                                        leading: const Icon(
-                                          Icons.support_agent,
-                                          color: Colors.green,
-                                        ),
-                                        title: const Text('Contact Support'),
-                                        onTap: () => Navigator.pop(context),
-                                      ),
-                                    ],
-                                  ),
-                            );
-                          },
-                        ),
+                  if (!_isDriverArrived)
+                    ElevatedButton(
+                      onPressed: _simulateDriverArrival,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 50),
                       ),
-
-                      const SizedBox(width: 16),
-
-                      // Cancel button
-                      Expanded(
-                        flex: 2,
-                        child: CustomButton(
-                          text: "Cancel Ride",
-                          isOutlined: true,
-                          onPressed: _cancelRide,
-                        ),
+                      child: const Text('Driver Arrived'),
+                    )
+                  else if (!_isEnRoute)
+                    ElevatedButton(
+                      onPressed: _startRide,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 50),
                       ),
-                    ],
-                  ),
+                      child: const Text('Start Ride'),
+                    )
+                  else
+                    ElevatedButton(
+                      onPressed: _showRideCompletedDialog,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 50),
+                      ),
+                      child: const Text('End Ride'),
+                    ),
                 ],
               ),
             ),

@@ -241,7 +241,7 @@ class _RideHistoryScreenState extends State<RideHistoryScreen>
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '\$${ride['fare'].toStringAsFixed(2)}',
+                    '₹${ride['fare'].toStringAsFixed(2)}',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
@@ -385,7 +385,7 @@ class _RideHistoryScreenState extends State<RideHistoryScreen>
               // Cancellation fee
               if (ride['cancellationFee'] > 0)
                 Text(
-                  'Cancellation Fee: \$${ride['cancellationFee'].toStringAsFixed(2)}',
+                  'Cancellation Fee: ₹${ride['cancellationFee'].toStringAsFixed(2)}',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
 

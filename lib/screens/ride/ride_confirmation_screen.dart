@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../config/theme.dart';
 import '../../models/ride_type_model.dart';
+import '../../models/driver_model.dart';
+import '../../models/location_model.dart';
 import '../../widgets/custom_button.dart';
 
 class RideConfirmationScreen extends StatefulWidget {
@@ -35,18 +37,47 @@ class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
         _isLoading = false;
       });
 
-      // Since the ride_matching_screen is not implemented yet,
-      // we'll show a success message and go back to home
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Ride confirmed! Driver will be assigned shortly.'),
-          duration: Duration(seconds: 2),
+      // Mock driver data - in a real app, this would come from the API
+      final driver = DriverModel(
+        id: "DRV001",
+        name: "John Doe",
+        phoneNumber: "+91 98765 43210",
+        rating: 4.8,
+        totalRides: 1250,
+        photoUrl: "https://example.com/driver-photo.jpg",
+        vehicle: VehicleInfo(
+          model: "SpaceCab Mini",
+          color: "White",
+          licensePlate: "KA-01-AB-1234",
+          type: "sedan",
+        ),
+        currentLocation: LocationModel(
+          latitude: 37.7749,
+          longitude: -122.4194,
+          address: "San Francisco, CA",
+          name: "San Francisco",
         ),
       );
 
-      Future.delayed(const Duration(seconds: 2), () {
-        context.go('/home');
-      });
+      // Navigate to ride tracking screen
+      context.push(
+        '/ride-tracking',
+        extra: {
+          'pickupLocation': LocationModel(
+            latitude: 37.7749,
+            longitude: -122.4194,
+            address: "San Francisco, CA",
+            name: "San Francisco",
+          ),
+          'dropoffLocation': LocationModel(
+            latitude: 37.7833,
+            longitude: -122.4167,
+            address: "Market St, San Francisco, CA",
+            name: "Market Street",
+          ),
+          'driver': driver,
+        },
+      );
     });
   }
 
@@ -153,7 +184,7 @@ class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
 
                         // Price
                         Text(
-                          "\$${totalFare.toStringAsFixed(2)}",
+                          "₹${totalFare.toStringAsFixed(2)}",
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -398,7 +429,7 @@ class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
                         // Base fare
                         _buildFareRow(
                           "Base fare",
-                          "\$${baseFare.toStringAsFixed(2)}",
+                          "₹${baseFare.toStringAsFixed(2)}",
                         ),
 
                         const SizedBox(height: 8),
@@ -406,7 +437,7 @@ class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
                         // Distance fare
                         _buildFareRow(
                           "Distance (${_distance.toStringAsFixed(1)} km)",
-                          "\$${distanceFare.toStringAsFixed(2)}",
+                          "₹${distanceFare.toStringAsFixed(2)}",
                         ),
 
                         const SizedBox(height: 8),
@@ -414,7 +445,7 @@ class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
                         // Time fare
                         _buildFareRow(
                           "Time (${_estimatedTime} mins)",
-                          "\$${timeFare.toStringAsFixed(2)}",
+                          "₹${timeFare.toStringAsFixed(2)}",
                         ),
 
                         const SizedBox(height: 8),
@@ -422,7 +453,7 @@ class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
                         // Platform fee
                         _buildFareRow(
                           "Platform fee",
-                          "\$${platformFee.toStringAsFixed(2)}",
+                          "₹${platformFee.toStringAsFixed(2)}",
                         ),
 
                         const SizedBox(height: 16),
@@ -444,7 +475,7 @@ class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
                               ),
                             ),
                             Text(
-                              "\$${totalFare.toStringAsFixed(2)}",
+                              "₹${totalFare.toStringAsFixed(2)}",
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,

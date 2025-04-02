@@ -57,8 +57,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _isLoading = false;
       });
 
-      // Navigate to the home screen for now
-      context.go('/home');
+      // Navigate to OTP verification screen
+      context.push(
+        '/verify-otp',
+        extra: {'phoneNumber': _phoneController.text},
+      );
     });
   }
 

@@ -3,11 +3,14 @@ import 'package:go_router/go_router.dart';
 
 // Models
 import '../models/location_model.dart';
+import '../models/driver_model.dart';
 
 // Screens
 import '../screens/splash/splash_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
 import '../screens/auth/login_screen.dart';
+import '../screens/auth/register_screen.dart';
+import '../screens/auth/verify_otp_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/ride/destination_selection_screen.dart';
 import '../screens/ride/ride_confirmation_screen.dart';
@@ -43,6 +46,20 @@ class AppRouter {
         path: '/login',
         builder: (BuildContext context, GoRouterState state) {
           return const LoginScreen();
+        },
+      ),
+      GoRoute(
+        path: '/register',
+        builder: (BuildContext context, GoRouterState state) {
+          return const RegisterScreen();
+        },
+      ),
+      GoRoute(
+        path: '/verify-otp',
+        builder: (BuildContext context, GoRouterState state) {
+          final Map<String, dynamic> extra =
+              state.extra as Map<String, dynamic>;
+          return VerifyOTPScreen(phoneNumber: extra['phoneNumber']);
         },
       ),
 
@@ -82,8 +99,14 @@ class AppRouter {
       ),
       GoRoute(
         path: '/ride-tracking',
-        builder: (BuildContext context, GoRouterState state) {
-          return const RideTrackingScreen();
+        builder: (context, state) {
+          final Map<String, dynamic> extra =
+              state.extra as Map<String, dynamic>;
+          return RideTrackingScreen(
+            pickupLocation: extra['pickupLocation'] as LocationModel,
+            dropoffLocation: extra['dropoffLocation'] as LocationModel,
+            driver: extra['driver'] as DriverModel,
+          );
         },
       ),
 
