@@ -6,10 +6,10 @@ import '../models/location_model.dart';
 import '../models/driver_model.dart';
 
 // Screens
+import '../screens/auth/signup_screen.dart';
 import '../screens/splash/splash_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
 import '../screens/auth/login_screen.dart';
-import '../screens/auth/register_screen.dart';
 import '../screens/auth/verify_otp_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/ride/destination_selection_screen.dart';
@@ -51,7 +51,7 @@ class AppRouter {
       GoRoute(
         path: '/register',
         builder: (BuildContext context, GoRouterState state) {
-          return const RegisterScreen();
+          return const SignupScreen();
         },
       ),
       GoRoute(
@@ -59,7 +59,7 @@ class AppRouter {
         builder: (BuildContext context, GoRouterState state) {
           final Map<String, dynamic> extra =
               state.extra as Map<String, dynamic>;
-          return VerifyOTPScreen(phoneNumber: extra['phoneNumber']);
+          return VerifyOTPScreen(phoneNumber: extra['phoneNumber'], verificationId: '', email: null,);
         },
       ),
 

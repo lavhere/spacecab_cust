@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:go_router/go_router.dart';
-
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl_phone_field/intl_phone_field.dart'; // added
 import '../../config/theme.dart';
 import '../../utils/constants.dart';
 import '../../widgets/custom_button.dart';
@@ -24,7 +25,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _login() {
-    // Validate phone number
     final phoneNumber = _phoneController.text.trim();
     if (phoneNumber.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -33,22 +33,49 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // Show loading
     setState(() {
       _isLoading = true;
     });
 
-    // Simulate API call with a delay
-    Future.delayed(const Duration(seconds: 2), () {
-      // In a real app, you would call your auth service here
-
-      setState(() {
-        _isLoading = false;
-      });
-
-      // Navigate to the OTP verification screen
-      context.push('/verify-otp', extra: {'phoneNumber': phoneNumber});
-    });
+    FirebaseAuth.instance.verifyPhoneNumber(
+      phoneNumber: phoneNumber,
+      timeout: const Duration(seconds: 60),
+      verificationCompleted: (PhoneAuthCredential credential) async {
+        try {
+          await FirebaseAuth.instance.signInWithCredential(credential);
+          setState(() {
+            _isLoading = false;
+          });
+          context.go('/home');
+        } catch (e) {
+          setState(() {
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Auto verification failed: $e')),
+          );
+        }
+      },
+      verificationFailed: (FirebaseAuthException e) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Verification failed: ${e.message}')),
+        );
+      },
+      codeSent: (String verificationId, int? resendToken) {
+        setState(() {
+          _isLoading = false;
+        });
+        // Navigate to the OTP verification screen, passing verificationId and phoneNumber
+        context.push('/verify-otp', extra: {
+          'phoneNumber': phoneNumber,
+          'verificationId': verificationId,
+        });
+      },
+      codeAutoRetrievalTimeout: (String verificationId) {},
+    );
   }
 
   @override
@@ -62,7 +89,6 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 40),
-
               // App logo
               Center(
                 child: Container(
@@ -84,60 +110,50 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 40),
-
               // Welcome text
               Text(
                 "Welcome to SpaceCab",
                 style: Theme.of(context).textTheme.displayMedium,
               ),
-
               const SizedBox(height: 8),
-
               Text(
                 "Sign in to continue",
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: AppTheme.textSecondaryColor,
                 ),
               ),
-
               const SizedBox(height: 40),
-
-              // Phone number input
+              // Phone number input using country code selector
               Text(
                 "Phone Number",
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
-
               const SizedBox(height: 8),
-
-              TextField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                decoration: InputDecoration(
+              IntlPhoneField(
+                initialCountryCode: 'US',
+                onChanged: (phone) {
+                  // Save the complete phone number in E.164 format
+                  _phoneController.text = phone.completeNumber;
+                },
+                decoration: const InputDecoration(
                   hintText: "Enter your phone number",
-                  prefixIcon: const Icon(Icons.phone),
+                  border: OutlineInputBorder(),
                 ),
               ),
-
               const SizedBox(height: 24),
-
               // Login button
               SizedBox(
                 width: double.infinity,
                 height: AppConstants.buttonHeight,
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _login,
-                  child:
-                      _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text("Continue"),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text("Continue"),
                 ),
               ),
-
               const SizedBox(height: 24),
-
               // Social login options
               Center(
                 child: Text(
@@ -147,9 +163,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 24),
-
               // Social login buttons
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -177,9 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 40),
-
               // Register option
               Center(
                 child: RichText(
@@ -195,11 +207,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           color: AppTheme.primaryColor,
                           fontWeight: FontWeight.bold,
                         ),
-                        recognizer:
-                            TapGestureRecognizer()
-                              ..onTap = () {
-                                context.go('/register');
-                              },
+                        recognizer: TapGestureRecognizer()
+                          ..onTap = () {
+                            context.go('/register');
+                          },
                       ),
                     ],
                   ),

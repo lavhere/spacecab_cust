@@ -57,9 +57,12 @@ dependencies:
   geocoding: ^2.1.1
   
   # Authentication - Will implement later
-  # firebase_core: ^2.21.0
-  # firebase_auth: ^4.12.1
-  # google_sign_in: ^6.1.6
+  firebase_core:
+  firebase_auth:
+  firebase_database:
+  firebase_storage:
+  intl_phone_field:
+#  google_sign_in: ^6.1.6
   
   # Storage & API
   shared_preferences: ^2.2.2

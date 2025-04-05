@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // added
 import 'package:go_router/go_router.dart';
 
 import '../../config/theme.dart';
@@ -8,9 +9,16 @@ import '../../widgets/custom_button.dart';
 
 class VerifyOTPScreen extends StatefulWidget {
   final String phoneNumber;
+  final String verificationId; // added to accept the verification ID
+  // Optionally, you can also receive extra details like name or email if needed
+  // final String? name;
+  // final String? email;
 
-  const VerifyOTPScreen({Key? key, required this.phoneNumber})
-    : super(key: key);
+  const VerifyOTPScreen({
+    Key? key,
+    required this.phoneNumber,
+    required this.verificationId, required email,
+  }) : super(key: key);
 
   @override
   State<VerifyOTPScreen> createState() => _VerifyOTPScreenState();
@@ -19,7 +27,7 @@ class VerifyOTPScreen extends StatefulWidget {
 class _VerifyOTPScreenState extends State<VerifyOTPScreen> {
   final List<TextEditingController> _controllers = List.generate(
     4,
-    (index) => TextEditingController(),
+        (index) => TextEditingController(),
   );
   final List<FocusNode> _focusNodes = List.generate(4, (index) => FocusNode());
 
@@ -70,9 +78,8 @@ class _VerifyOTPScreenState extends State<VerifyOTPScreen> {
     if (_resendTimerSeconds > 0) return;
 
     // In a real app, this would resend the verification code
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Verification code resent')));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Verification code resent')));
 
     setState(() {
       _resendTimerSeconds = 30;
@@ -101,16 +108,31 @@ class _VerifyOTPScreenState extends State<VerifyOTPScreen> {
       _isVerifying = true;
     });
 
-    // In a real app, this would verify the OTP with a backend service
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      // Create a PhoneAuthCredential with the code
+      PhoneAuthCredential credential = PhoneAuthProvider.credential(
+          verificationId: widget.verificationId, smsCode: code);
 
-    setState(() {
-      _isVerifying = false;
-    });
+      // Sign in the user with the credential
+      await FirebaseAuth.instance.signInWithCredential(credential);
 
-    if (mounted) {
-      // For demo, let's just accept any 4-digit code
-      context.go('/home');
+      setState(() {
+        _isVerifying = false;
+      });
+
+      if (mounted) {
+        context.go('/home');
+      }
+    } catch (e) {
+      setState(() {
+        _isVerifying = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Verification failed: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -129,7 +151,6 @@ class _VerifyOTPScreenState extends State<VerifyOTPScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: 40),
-
             // Verification icon
             Container(
               width: 80,
@@ -144,34 +165,27 @@ class _VerifyOTPScreenState extends State<VerifyOTPScreen> {
                 color: AppTheme.primaryColor,
               ),
             ),
-
             const SizedBox(height: 24),
-
             // Title
             const Text(
               'Verification Code',
               style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
             ),
-
             const SizedBox(height: 8),
-
             // Subtitle
             Text(
               'We have sent a verification code to ${widget.phoneNumber}',
               style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
               textAlign: TextAlign.center,
             ),
-
             const SizedBox(height: 32),
-
             // OTP Input fields
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: List.generate(4, (index) => _buildOtpDigitField(index)),
+              children:
+              List.generate(4, (index) => _buildOtpDigitField(index)),
             ),
-
             const SizedBox(height: 24),
-
             // Resend code option
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -187,19 +201,16 @@ class _VerifyOTPScreenState extends State<VerifyOTPScreen> {
                         ? 'Resend in $_resendTimerSeconds s'
                         : 'Resend',
                     style: TextStyle(
-                      color:
-                          _resendTimerSeconds > 0
-                              ? Colors.grey
-                              : AppTheme.primaryColor,
+                      color: _resendTimerSeconds > 0
+                          ? Colors.grey
+                          : AppTheme.primaryColor,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
               ],
             ),
-
             const Spacer(),
-
             // Verify button
             CustomButton(
               text: 'Verify',
@@ -210,7 +221,6 @@ class _VerifyOTPScreenState extends State<VerifyOTPScreen> {
               },
               isLoading: _isVerifying,
             ),
-
             const SizedBox(height: 20),
           ],
         ),
@@ -225,10 +235,9 @@ class _VerifyOTPScreenState extends State<VerifyOTPScreen> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color:
-              _focusNodes[index].hasFocus
-                  ? AppTheme.primaryColor
-                  : Colors.grey.shade300,
+          color: _focusNodes[index].hasFocus
+              ? AppTheme.primaryColor
+              : Colors.grey.shade300,
           width: _focusNodes[index].hasFocus ? 2 : 1,
         ),
       ),
@@ -248,7 +257,6 @@ class _VerifyOTPScreenState extends State<VerifyOTPScreen> {
           if (value.isEmpty && index > 0) {
             _focusNodes[index - 1].requestFocus();
           }
-
           if (value.isNotEmpty && index == 3) {
             _focusNodes[index].unfocus();
           }

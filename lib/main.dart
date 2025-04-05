@@ -6,8 +6,11 @@ import 'package:device_preview/device_preview.dart';
 import 'config/routes.dart';
 import 'config/theme.dart';
 import 'utils/constants.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
 void main() async {
+
   WidgetsFlutterBinding.ensureInitialized();
 
   // Set preferred orientations
@@ -31,7 +34,9 @@ void main() async {
 
   // For development: uncomment to reset onboarding status
   // await prefs.setBool(AppConstants.onboardingCompletedKey, false);
-
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(
     DevicePreview(
       enabled: true, // Enable device preview in all environments
@@ -42,7 +47,7 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
