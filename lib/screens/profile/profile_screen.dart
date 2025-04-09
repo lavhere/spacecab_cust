@@ -43,7 +43,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> fetchUserData() async {
     if (uid.isEmpty) return;
-    DatabaseReference userRef = FirebaseDatabase.instance.ref().child("users").child(uid);
+    DatabaseReference userRef = FirebaseDatabase.instance
+        .ref()
+        .child("users")
+        .child(uid);
     final snapshot = await userRef.once();
     final data = snapshot.snapshot.value;
 
@@ -65,7 +68,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _saveProfile() async {
     if (_formKey.currentState!.validate()) {
-      DatabaseReference userRef = FirebaseDatabase.instance.ref().child("users").child(uid);
+      DatabaseReference userRef = FirebaseDatabase.instance
+          .ref()
+          .child("users")
+          .child(uid);
       await userRef.update({
         "name": _nameController.text,
         "email": _emailController.text,
@@ -110,13 +116,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     CircleAvatar(
                       radius: 60,
-                      backgroundImage: profileImageUrl.isNotEmpty
-                          ? NetworkImage(profileImageUrl)
-                          : null,
+                      backgroundImage:
+                          profileImageUrl.isNotEmpty
+                              ? NetworkImage(profileImageUrl)
+                              : null,
                       backgroundColor: Colors.grey[200],
-                      child: profileImageUrl.isEmpty
-                          ? const Icon(Icons.person, size: 60, color: Colors.grey)
-                          : null,
+                      child:
+                          profileImageUrl.isEmpty
+                              ? const Icon(
+                                Icons.person,
+                                size: 60,
+                                color: Colors.grey,
+                              )
+                              : null,
                     ),
                     if (_isEditMode)
                       Positioned(
@@ -128,7 +140,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             shape: BoxShape.circle,
                           ),
                           padding: const EdgeInsets.all(8),
-                          child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                          child: const Icon(
+                            Icons.camera_alt,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                         ),
                       ),
                   ],
@@ -144,8 +160,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     label: 'Full Name',
                     controller: _nameController,
                     enabled: _isEditMode,
-                    validator: (value) =>
-                    value == null || value.isEmpty ? 'Please enter your name' : null,
+                    validator:
+                        (value) =>
+                            value == null || value.isEmpty
+                                ? 'Please enter your name'
+                                : null,
                   ),
                   _buildTextField(
                     label: 'Email',
@@ -153,9 +172,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     enabled: _isEditMode,
                     keyboardType: TextInputType.emailAddress,
                     validator: (value) {
-                      if (value == null || value.isEmpty) return 'Please enter your email';
-                      final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-                      return emailRegex.hasMatch(value) ? null : 'Enter a valid email';
+                      if (value == null || value.isEmpty)
+                        return 'Please enter your email';
+                      final emailRegex = RegExp(
+                        r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                      );
+                      return emailRegex.hasMatch(value)
+                          ? null
+                          : 'Enter a valid email';
                     },
                   ),
                   _buildTextField(
@@ -163,10 +187,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     controller: _phoneController,
                     enabled: _isEditMode,
                     keyboardType: TextInputType.phone,
-                    validator: (value) =>
-                    value == null || value.isEmpty ? 'Please enter your phone number' : null,
+                    validator:
+                        (value) =>
+                            value == null || value.isEmpty
+                                ? 'Please enter your phone number'
+                                : null,
                   ),
-
                 ],
               ),
 
@@ -176,11 +202,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 title: 'Payment Methods',
                 trailing: _isEditMode ? const Icon(Icons.add) : null,
                 onTrailingTap:
-                _isEditMode
-                    ? () {
-                  // Navigate to add payment method
-                }
-                    : null,
+                    _isEditMode
+                        ? () {
+                          // Navigate to add payment method
+                        }
+                        : null,
                 children: [
                   _buildPaymentMethod(
                     icon: Icons.credit_card,
@@ -188,22 +214,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     subtitle: 'Expires 12/25',
                     isDefault: true,
                     onDelete:
-                    _isEditMode
-                        ? () {
-                      // Delete payment method
-                    }
-                        : null,
+                        _isEditMode
+                            ? () {
+                              // Delete payment method
+                            }
+                            : null,
                   ),
                   _buildPaymentMethod(
                     icon: Icons.payment,
                     title: 'PayPal',
                     subtitle: 'alex.johnson@example.com',
                     onDelete:
-                    _isEditMode
-                        ? () {
-                      // Delete payment method
-                    }
-                        : null,
+                        _isEditMode
+                            ? () {
+                              // Delete payment method
+                            }
+                            : null,
                   ),
                 ],
               ),
@@ -215,37 +241,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 title: 'Favorite Locations',
                 trailing: _isEditMode ? const Icon(Icons.add) : null,
                 onTrailingTap:
-                _isEditMode
-                    ? () {
-                  // Navigate to add location
-                }
-                    : null,
+                    _isEditMode
+                        ? () {
+                          // Navigate to add location
+                        }
+                        : null,
                 children: [
                   _buildLocationItem(
                     icon: Icons.home,
                     title: 'Home',
                     subtitle: '123 Main St, San Francisco, CA',
                     onDelete:
-                    _isEditMode
-                        ? () {
-                      // Delete location
-                    }
-                        : null,
+                        _isEditMode
+                            ? () {
+                              // Delete location
+                            }
+                            : null,
                   ),
                   _buildLocationItem(
                     icon: Icons.work,
                     title: 'Work',
                     subtitle: '456 Market St, San Francisco, CA',
                     onDelete:
-                    _isEditMode
-                        ? () {
-                      // Delete location
-                    }
-                        : null,
+                        _isEditMode
+                            ? () {
+                              // Delete location
+                            }
+                            : null,
                   ),
                 ],
               ),
-
 
               _buildInfoSection(
                 title: 'Account',
@@ -276,24 +301,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     onTap: () {
                       showDialog(
                         context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Log Out'),
-                          content: const Text('Are you sure you want to log out?'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('Cancel'),
+                        builder:
+                            (context) => AlertDialog(
+                              title: const Text('Log Out'),
+                              content: const Text(
+                                'Are you sure you want to log out?',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text('Cancel'),
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    FirebaseAuth.instance.signOut();
+                                    Navigator.pop(context);
+                                    context.go('/login');
+                                  },
+                                  child: const Text('Log Out'),
+                                ),
+                              ],
                             ),
-                            TextButton(
-                              onPressed: () {
-                                FirebaseAuth.instance.signOut();
-                                Navigator.pop(context);
-                                context.go('/login');
-                              },
-                              child: const Text('Log Out'),
-                            ),
-                          ],
-                        ),
                       );
                     },
                   ),
@@ -303,10 +331,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 32),
 
               if (_isEditMode)
-                CustomButton(
-                  text: 'Save Changes',
-                  onPressed: _saveProfile,
-                ),
+                CustomButton(text: 'Save Changes', onPressed: _saveProfile),
             ],
           ),
         ),
@@ -328,8 +353,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              if (trailing != null) GestureDetector(onTap: onTrailingTap, child: trailing),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (trailing != null)
+                GestureDetector(onTap: onTrailingTap, child: trailing),
             ],
           ),
         ),
@@ -379,12 +411,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String title,
     required VoidCallback onTap,
   }) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(title),
-      onTap: onTap,
-    );
+    return ListTile(leading: Icon(icon), title: Text(title), onTap: onTap);
   }
+
   Widget _buildPaymentMethod({
     required IconData icon,
     required String title,
@@ -459,6 +488,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+
   Widget _buildLocationItem({
     required IconData icon,
     required String title,
@@ -512,7 +542,3 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 }
-
-
-
-
