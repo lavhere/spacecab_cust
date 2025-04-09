@@ -1,55 +1,86 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:go_router/go_router.dart';
+import 'package:spacecab/screens/home/home_screen.dart';
 
 import '../../config/theme.dart';
 import '../../utils/constants.dart';
-import '../../widgets/custom_button.dart';
+import '../../widgets/custom_text_field.dart';
+import '../../widgets/internet_connectivity.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController _phoneController = TextEditingController();
+  TextEditingController passwordTextEditingController = TextEditingController();
+  TextEditingController emailTextEditingController = TextEditingController();
   bool _isLoading = false;
+  bool _isPasswordVisible = false;
+  final internet = InternetConnections();
 
   @override
   void dispose() {
-    _phoneController.dispose();
+    passwordTextEditingController.dispose();
+    emailTextEditingController.dispose();
     super.dispose();
   }
 
-  void _login() {
-    // Validate phone number
-    final phoneNumber = _phoneController.text.trim();
-    if (phoneNumber.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your phone number')),
-      );
-      return;
-    }
-
-    // Show loading
+  signInUser() async {
     setState(() {
       _isLoading = true;
     });
 
-    // Simulate API call with a delay
-    Future.delayed(const Duration(seconds: 2), () {
-      // In a real app, you would call your auth service here
+    try {
+      final UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(
+        email: emailTextEditingController.text.trim(),
+        password: passwordTextEditingController.text.trim(),
+      );
 
+      final userFirebase = userCredential.user;
+
+      if (userFirebase != null) {
+        DatabaseReference usersRef = FirebaseDatabase.instance
+            .ref()
+            .child("users")
+            .child(userFirebase.uid);
+
+        DatabaseEvent snap = await usersRef.once();
+
+        if (snap.snapshot.value != null) {
+          if ((snap.snapshot.value as Map)["blockStatus"] == "no") {
+            // Navigate to home
+            if (!context.mounted) return;
+            context.go('/home');
+          } else {
+            await FirebaseAuth.instance.signOut();
+            if (!context.mounted) return;
+            internet.displaySnackBar("Your account is blocked. Contact the admin.", context);
+          }
+        } else {
+          await FirebaseAuth.instance.signOut();
+          if (!context.mounted) return;
+          internet.displaySnackBar("Create an Account for user", context);
+        }
+      }
+    } catch (error) {
+      if (!context.mounted) return;
+      internet.displaySnackBar(error.toString(), context);
+    }
+
+    if (mounted) {
       setState(() {
         _isLoading = false;
       });
-
-      // Navigate to the OTP verification screen
-      context.push('/verify-otp', extra: {'phoneNumber': phoneNumber});
-    });
+    }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -104,21 +135,51 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 40),
 
-              // Phone number input
-              Text(
-                "Phone Number",
-                style: Theme.of(context).textTheme.headlineSmall,
+              CustomTextField(
+                controller: emailTextEditingController,
+                label: 'Email Address',
+                prefixIcon: Icons.email_outlined,
+                keyboardType: TextInputType.emailAddress,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter your email';
+                  }
+                  if (!RegExp(
+                    r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                  ).hasMatch(value)) {
+                    return 'Please enter a valid email';
+                  }
+                  return null;
+                },
               ),
-
-              const SizedBox(height: 8),
-
-              TextField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                decoration: InputDecoration(
-                  hintText: "Enter your phone number",
-                  prefixIcon: const Icon(Icons.phone),
+              const SizedBox(height: 20),
+              CustomTextField(
+                controller: passwordTextEditingController,
+                label: 'Password',
+                prefixIcon: Icons.lock_outline,
+                obscureText: !_isPasswordVisible,
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _isPasswordVisible
+                        ? Icons.visibility_off
+                        : Icons.visibility,
+                    color: Colors.grey,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _isPasswordVisible = !_isPasswordVisible;
+                    });
+                  },
                 ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a password';
+                  }
+                  if (value.length < 6) {
+                    return 'Password must be at least 6 characters';
+                  }
+                  return null;
+                },
               ),
 
               const SizedBox(height: 24),
@@ -128,7 +189,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 width: double.infinity,
                 height: AppConstants.buttonHeight,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : _login,
+                  onPressed: () {
+                    signInUser();
+                  },
                   child:
                       _isLoading
                           ? const CircularProgressIndicator(color: Colors.white)

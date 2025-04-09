@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:lottie/lottie.dart';
 
-import '../../config/theme.dart';
 import '../../utils/constants.dart';
 
 class OnboardingScreen extends StatefulWidget {

@@ -1,13 +1,16 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:go_router/go_router.dart';
-
+import 'package:spacecab/screens/home/home_screen.dart';
+import 'package:spacecab/widgets/internet_connectivity.dart';
 import '../../config/theme.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
 
 class SignupScreen extends StatefulWidget {
-  const SignupScreen({Key? key}) : super(key: key);
+  const SignupScreen({super.key});
 
   @override
   State<SignupScreen> createState() => _SignupScreenState();
@@ -15,32 +18,91 @@ class SignupScreen extends StatefulWidget {
 
 class _SignupScreenState extends State<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
   bool _acceptTerms = false;
+  TextEditingController userNameTextEditingController = TextEditingController();
+  TextEditingController passwordTextEditingController = TextEditingController();
+  TextEditingController emailTextEditingController = TextEditingController();
+  TextEditingController userPhoneTextEditingController =
+      TextEditingController();
+
+  final internet = InternetConnections();
+
+  @override
+  void initState() {
+    super.initState();
+    internet.checkConnectivity(context, onDisconnected: () {});
+  }
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _emailController.dispose();
-    _phoneController.dispose();
-    _passwordController.dispose();
+    userNameTextEditingController.dispose();
+    passwordTextEditingController.dispose();
+    emailTextEditingController.dispose();
+    userPhoneTextEditingController.dispose();
+
     super.dispose();
   }
 
-  void _signup() {
-    if (_formKey.currentState!.validate() && _acceptTerms) {
-      // In a real app, this would send data to an authentication service
+  /// to register the new user function
+  registerNewUser() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(child: CircularProgressIndicator());
+      },
+    );
 
-      // For now, just navigate to OTP verification
-      context.go('/verify-otp', extra: {'phoneNumber': _phoneController.text});
-    } else if (!_acceptTerms) {
+    try {
+      final UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: emailTextEditingController.text.trim(),
+            password: passwordTextEditingController.text.trim(),
+          );
+
+      final User? userFirebase = userCredential.user;
+
+      if (userFirebase != null) {
+        DatabaseReference usersRef = FirebaseDatabase.instance
+            .ref()
+            .child("users")
+            .child(userFirebase.uid);
+
+        Map<String, String> userDataMap = {
+          "name": userNameTextEditingController.text.trim(),
+          "email": emailTextEditingController.text.trim(),
+          "phone": userPhoneTextEditingController.text.trim(),
+          "id": userFirebase.uid,
+          "blockStatus": "no",
+        };
+
+        await usersRef.set(userDataMap);
+
+        if (!context.mounted) return;
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Signup successful!"),
+            backgroundColor: Colors.green,
+          ),
+        );
+        context.go('/home');
+      }
+    } on FirebaseAuthException catch (e) {
+      Navigator.pop(context);
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please accept the terms and conditions'),
+        SnackBar(
+          content: Text(e.message ?? "Signup failed"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } catch (e) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Something went wrong: $e"),
           backgroundColor: Colors.red,
         ),
       );
@@ -58,7 +120,6 @@ class _SignupScreenState extends State<SignupScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Header
               const Text(
                 'Join SpaceCab',
                 style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
@@ -70,9 +131,8 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
               const SizedBox(height: 32),
 
-              // Name field
               CustomTextField(
-                controller: _nameController,
+                controller: userNameTextEditingController,
                 label: 'Full Name',
                 prefixIcon: Icons.person_outline,
                 validator: (value) {
@@ -84,9 +144,8 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Email field
               CustomTextField(
-                controller: _emailController,
+                controller: emailTextEditingController,
                 label: 'Email Address',
                 prefixIcon: Icons.email_outlined,
                 keyboardType: TextInputType.emailAddress,
@@ -104,9 +163,8 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Phone field
               CustomTextField(
-                controller: _phoneController,
+                controller: userPhoneTextEditingController,
                 label: 'Phone Number',
                 prefixIcon: Icons.phone_outlined,
                 keyboardType: TextInputType.phone,
@@ -122,9 +180,8 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Password field
               CustomTextField(
-                controller: _passwordController,
+                controller: passwordTextEditingController,
                 label: 'Password',
                 prefixIcon: Icons.lock_outline,
                 obscureText: !_isPasswordVisible,
@@ -153,7 +210,6 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Terms and conditions checkbox
               Row(
                 children: [
                   Checkbox(
@@ -180,7 +236,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             recognizer:
                                 TapGestureRecognizer()
                                   ..onTap = () {
-                                    // Show terms and conditions
+                                    // Show terms
                                   },
                           ),
                           const TextSpan(text: ' and '),
@@ -193,7 +249,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             recognizer:
                                 TapGestureRecognizer()
                                   ..onTap = () {
-                                    // Show privacy policy
+                                    // Show privacy
                                   },
                           ),
                         ],
@@ -204,11 +260,24 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
               const SizedBox(height: 32),
 
-              // Signup button
-              CustomButton(text: 'Sign Up', onPressed: _signup),
+              CustomButton(
+                text: 'Sign Up',
+                onPressed: () {
+                  if (_formKey.currentState!.validate() && _acceptTerms) {
+                    registerNewUser();
+                  } else if (!_acceptTerms) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please accept the terms and conditions'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                },
+              ),
+
               const SizedBox(height: 16),
 
-              // Already have an account link
               Center(
                 child: RichText(
                   text: TextSpan(
@@ -233,7 +302,6 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Alternative sign-up methods
               Row(
                 children: [
                   const Expanded(child: Divider()),
@@ -249,7 +317,6 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Social sign-up buttons
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -301,7 +368,6 @@ class _SignupScreenState extends State<SignupScreen> {
             icon,
             width: 24,
             height: 24,
-            // If the asset isn't available yet, show icon as a fallback
             errorBuilder:
                 (context, error, stackTrace) =>
                     Icon(Icons.sync_alt, color: AppTheme.primaryColor),

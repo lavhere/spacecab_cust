@@ -1,3 +1,5 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -5,38 +7,30 @@ import '../../config/theme.dart';
 import '../../widgets/custom_button.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
+  const ProfileScreen({super.key});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  // Mock user data
-  final Map<String, dynamic> _userData = {
-    'name': 'Alex Johnson',
-    'email': 'alex.johnson@example.com',
-    'phone': '+1 (555) 123-4567',
-    'profileImage': 'https://randomuser.me/api/portraits/men/32.jpg',
-  };
+  final _formKey = GlobalKey<FormState>();
+  final String uid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
-  // Form controllers
   late TextEditingController _nameController;
   late TextEditingController _emailController;
   late TextEditingController _phoneController;
 
-  // Form key for validation
-  final _formKey = GlobalKey<FormState>();
-
-  // Edit mode
+  String profileImageUrl = '';
   bool _isEditMode = false;
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: _userData['name']);
-    _emailController = TextEditingController(text: _userData['email']);
-    _phoneController = TextEditingController(text: _userData['phone']);
+    _nameController = TextEditingController();
+    _emailController = TextEditingController();
+    _phoneController = TextEditingController();
+    fetchUserData();
   }
 
   @override
@@ -47,25 +41,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
+  Future<void> fetchUserData() async {
+    if (uid.isEmpty) return;
+    DatabaseReference userRef = FirebaseDatabase.instance.ref().child("users").child(uid);
+    final snapshot = await userRef.once();
+    final data = snapshot.snapshot.value;
+
+    if (data != null && data is Map) {
+      setState(() {
+        _nameController.text = data["name"] ?? '';
+        _emailController.text = data["email"] ?? '';
+        _phoneController.text = data["phone"] ?? '';
+        profileImageUrl = data["profileImage"] ?? '';
+      });
+    }
+  }
+
   void _toggleEditMode() {
     setState(() {
-      if (_isEditMode) {
-        // If we're exiting edit mode, reset the controllers to original values
-        _nameController.text = _userData['name'];
-        _emailController.text = _userData['email'];
-        _phoneController.text = _userData['phone'];
-      }
       _isEditMode = !_isEditMode;
     });
   }
 
-  void _saveProfile() {
+  Future<void> _saveProfile() async {
     if (_formKey.currentState!.validate()) {
-      // In a real app, we would save this to a database or API
+      DatabaseReference userRef = FirebaseDatabase.instance.ref().child("users").child(uid);
+      await userRef.update({
+        "name": _nameController.text,
+        "email": _emailController.text,
+        "phone": _phoneController.text,
+      });
+
       setState(() {
-        _userData['name'] = _nameController.text;
-        _userData['email'] = _emailController.text;
-        _userData['phone'] = _phoneController.text;
         _isEditMode = false;
       });
 
@@ -91,244 +98,216 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
       body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Profile image and edit button
-                Center(
-                  child: Stack(
-                    children: [
-                      CircleAvatar(
-                        radius: 60,
-                        backgroundImage: NetworkImage(
-                          _userData['profileImage'],
-                        ),
-                        backgroundColor: Colors.grey[200],
-                        child: const Icon(
-                          Icons.person,
-                          size: 60,
-                          color: Colors.grey,
+        padding: const EdgeInsets.all(16),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Profile Image
+              Center(
+                child: Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 60,
+                      backgroundImage: profileImageUrl.isNotEmpty
+                          ? NetworkImage(profileImageUrl)
+                          : null,
+                      backgroundColor: Colors.grey[200],
+                      child: profileImageUrl.isEmpty
+                          ? const Icon(Icons.person, size: 60, color: Colors.grey)
+                          : null,
+                    ),
+                    if (_isEditMode)
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            color: AppTheme.primaryColor,
+                            shape: BoxShape.circle,
+                          ),
+                          padding: const EdgeInsets.all(8),
+                          child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
                         ),
                       ),
-                      if (_isEditMode)
-                        Positioned(
-                          bottom: 0,
-                          right: 0,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryColor,
-                              shape: BoxShape.circle,
-                            ),
-                            padding: const EdgeInsets.all(8),
-                            child: const Icon(
-                              Icons.camera_alt,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                    ],
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 32),
+
+              _buildInfoSection(
+                title: 'Personal Information',
+                children: [
+                  _buildTextField(
+                    label: 'Full Name',
+                    controller: _nameController,
+                    enabled: _isEditMode,
+                    validator: (value) =>
+                    value == null || value.isEmpty ? 'Please enter your name' : null,
                   ),
+                  _buildTextField(
+                    label: 'Email',
+                    controller: _emailController,
+                    enabled: _isEditMode,
+                    keyboardType: TextInputType.emailAddress,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) return 'Please enter your email';
+                      final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                      return emailRegex.hasMatch(value) ? null : 'Enter a valid email';
+                    },
+                  ),
+                  _buildTextField(
+                    label: 'Phone Number',
+                    controller: _phoneController,
+                    enabled: _isEditMode,
+                    keyboardType: TextInputType.phone,
+                    validator: (value) =>
+                    value == null || value.isEmpty ? 'Please enter your phone number' : null,
+                  ),
+
+                ],
+              ),
+
+              const SizedBox(height: 24),
+              // Payment methods
+              _buildInfoSection(
+                title: 'Payment Methods',
+                trailing: _isEditMode ? const Icon(Icons.add) : null,
+                onTrailingTap:
+                _isEditMode
+                    ? () {
+                  // Navigate to add payment method
+                }
+                    : null,
+                children: [
+                  _buildPaymentMethod(
+                    icon: Icons.credit_card,
+                    title: '**** **** **** 4567',
+                    subtitle: 'Expires 12/25',
+                    isDefault: true,
+                    onDelete:
+                    _isEditMode
+                        ? () {
+                      // Delete payment method
+                    }
+                        : null,
+                  ),
+                  _buildPaymentMethod(
+                    icon: Icons.payment,
+                    title: 'PayPal',
+                    subtitle: 'alex.johnson@example.com',
+                    onDelete:
+                    _isEditMode
+                        ? () {
+                      // Delete payment method
+                    }
+                        : null,
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 24),
+
+              // Favorite locations
+              _buildInfoSection(
+                title: 'Favorite Locations',
+                trailing: _isEditMode ? const Icon(Icons.add) : null,
+                onTrailingTap:
+                _isEditMode
+                    ? () {
+                  // Navigate to add location
+                }
+                    : null,
+                children: [
+                  _buildLocationItem(
+                    icon: Icons.home,
+                    title: 'Home',
+                    subtitle: '123 Main St, San Francisco, CA',
+                    onDelete:
+                    _isEditMode
+                        ? () {
+                      // Delete location
+                    }
+                        : null,
+                  ),
+                  _buildLocationItem(
+                    icon: Icons.work,
+                    title: 'Work',
+                    subtitle: '456 Market St, San Francisco, CA',
+                    onDelete:
+                    _isEditMode
+                        ? () {
+                      // Delete location
+                    }
+                        : null,
+                  ),
+                ],
+              ),
+
+
+              _buildInfoSection(
+                title: 'Account',
+                children: [
+                  _buildActionItem(
+                    icon: Icons.history,
+                    title: 'Ride History',
+                    onTap: () => context.go('/ride_history'),
+                  ),
+                  _buildActionItem(
+                    icon: Icons.support_agent,
+                    title: 'Support',
+                    onTap: () => context.go('/support'),
+                  ),
+                  _buildActionItem(
+                    icon: Icons.privacy_tip,
+                    title: 'Privacy Policy',
+                    onTap: () {},
+                  ),
+                  _buildActionItem(
+                    icon: Icons.description,
+                    title: 'Terms of Service',
+                    onTap: () {},
+                  ),
+                  _buildActionItem(
+                    icon: Icons.logout,
+                    title: 'Log Out',
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Log Out'),
+                          content: const Text('Are you sure you want to log out?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                FirebaseAuth.instance.signOut();
+                                Navigator.pop(context);
+                                context.go('/login');
+                              },
+                              child: const Text('Log Out'),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 32),
+
+              if (_isEditMode)
+                CustomButton(
+                  text: 'Save Changes',
+                  onPressed: _saveProfile,
                 ),
-
-                const SizedBox(height: 32),
-
-                // Profile information
-                _buildInfoSection(
-                  title: 'Personal Information',
-                  children: [
-                    _buildTextField(
-                      label: 'Full Name',
-                      controller: _nameController,
-                      enabled: _isEditMode,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your name';
-                        }
-                        return null;
-                      },
-                    ),
-                    _buildTextField(
-                      label: 'Email',
-                      controller: _emailController,
-                      enabled: _isEditMode,
-                      keyboardType: TextInputType.emailAddress,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your email';
-                        }
-                        if (!RegExp(
-                          r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                        ).hasMatch(value)) {
-                          return 'Please enter a valid email';
-                        }
-                        return null;
-                      },
-                    ),
-                    _buildTextField(
-                      label: 'Phone Number',
-                      controller: _phoneController,
-                      enabled: _isEditMode,
-                      keyboardType: TextInputType.phone,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your phone number';
-                        }
-                        return null;
-                      },
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 24),
-
-                // Payment methods
-                _buildInfoSection(
-                  title: 'Payment Methods',
-                  trailing: _isEditMode ? const Icon(Icons.add) : null,
-                  onTrailingTap:
-                      _isEditMode
-                          ? () {
-                            // Navigate to add payment method
-                          }
-                          : null,
-                  children: [
-                    _buildPaymentMethod(
-                      icon: Icons.credit_card,
-                      title: '**** **** **** 4567',
-                      subtitle: 'Expires 12/25',
-                      isDefault: true,
-                      onDelete:
-                          _isEditMode
-                              ? () {
-                                // Delete payment method
-                              }
-                              : null,
-                    ),
-                    _buildPaymentMethod(
-                      icon: Icons.payment,
-                      title: 'PayPal',
-                      subtitle: 'alex.johnson@example.com',
-                      onDelete:
-                          _isEditMode
-                              ? () {
-                                // Delete payment method
-                              }
-                              : null,
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 24),
-
-                // Favorite locations
-                _buildInfoSection(
-                  title: 'Favorite Locations',
-                  trailing: _isEditMode ? const Icon(Icons.add) : null,
-                  onTrailingTap:
-                      _isEditMode
-                          ? () {
-                            // Navigate to add location
-                          }
-                          : null,
-                  children: [
-                    _buildLocationItem(
-                      icon: Icons.home,
-                      title: 'Home',
-                      subtitle: '123 Main St, San Francisco, CA',
-                      onDelete:
-                          _isEditMode
-                              ? () {
-                                // Delete location
-                              }
-                              : null,
-                    ),
-                    _buildLocationItem(
-                      icon: Icons.work,
-                      title: 'Work',
-                      subtitle: '456 Market St, San Francisco, CA',
-                      onDelete:
-                          _isEditMode
-                              ? () {
-                                // Delete location
-                              }
-                              : null,
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 32),
-
-                // Account actions
-                _buildInfoSection(
-                  title: 'Account',
-                  children: [
-                    _buildActionItem(
-                      icon: Icons.history,
-                      title: 'Ride History',
-                      onTap: () => context.go('/ride_history'),
-                    ),
-                    _buildActionItem(
-                      icon: Icons.support_agent,
-                      title: 'Support',
-                      onTap: () => context.go('/support'),
-                    ),
-                    _buildActionItem(
-                      icon: Icons.privacy_tip,
-                      title: 'Privacy Policy',
-                      onTap: () {
-                        // Open privacy policy
-                      },
-                    ),
-                    _buildActionItem(
-                      icon: Icons.description,
-                      title: 'Terms of Service',
-                      onTap: () {
-                        // Open terms of service
-                      },
-                    ),
-                    _buildActionItem(
-                      icon: Icons.logout,
-                      title: 'Log Out',
-                      onTap: () {
-                        showDialog(
-                          context: context,
-                          builder:
-                              (context) => AlertDialog(
-                                title: const Text('Log Out'),
-                                content: const Text(
-                                  'Are you sure you want to log out?',
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context),
-                                    child: const Text('Cancel'),
-                                  ),
-                                  TextButton(
-                                    onPressed: () {
-                                      Navigator.pop(context);
-                                      context.go('/login');
-                                    },
-                                    child: const Text('Log Out'),
-                                  ),
-                                ],
-                              ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 32),
-
-                if (_isEditMode)
-                  CustomButton(text: 'Save Changes', onPressed: _saveProfile),
-              ],
-            ),
+            ],
           ),
         ),
       ),
@@ -349,15 +328,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              if (trailing != null)
-                GestureDetector(onTap: onTrailingTap, child: trailing),
+              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              if (trailing != null) GestureDetector(onTap: onTrailingTap, child: trailing),
             ],
           ),
         ),
@@ -378,6 +350,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: TextFormField(
         controller: controller,
         enabled: enabled,
+        keyboardType: keyboardType,
+        validator: validator,
         decoration: InputDecoration(
           labelText: label,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -396,12 +370,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
           filled: !enabled,
           fillColor: enabled ? null : Colors.grey.shade100,
         ),
-        keyboardType: keyboardType,
-        validator: validator,
       ),
     );
   }
 
+  Widget _buildActionItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(title),
+      onTap: onTap,
+    );
+  }
   Widget _buildPaymentMethod({
     required IconData icon,
     required String title,
@@ -476,7 +459,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
-
   Widget _buildLocationItem({
     required IconData icon,
     required String title,
@@ -529,18 +511,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
-
-  Widget _buildActionItem({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      leading: Icon(icon, color: AppTheme.primaryColor),
-      title: Text(title),
-      trailing: const Icon(Icons.chevron_right),
-      contentPadding: EdgeInsets.zero,
-      onTap: onTap,
-    );
-  }
 }
+
+
+
+

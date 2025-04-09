@@ -2,13 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:geolocator/geolocator.dart';
 
 import '../../config/theme.dart';
 import '../../models/driver_model.dart';
 import '../../models/location_model.dart';
-import '../../utils/constants.dart';
-import '../../widgets/custom_button.dart';
 
 class RideTrackingScreen extends StatefulWidget {
   final LocationModel pickupLocation;

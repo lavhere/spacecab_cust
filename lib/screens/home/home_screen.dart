@@ -1,17 +1,18 @@
 import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter/foundation.dart';
-
 import '../../config/theme.dart';
 import '../../utils/constants.dart';
 import '../../models/driver_model.dart';
 import '../../models/location_model.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -26,16 +27,35 @@ class _HomeScreenState extends State<HomeScreen> {
     zoom: AppConstants.defaultMapZoom,
   );
 
-  Set<Marker> _markers = {};
+  final Set<Marker> _markers = {};
   bool _isLoading = true;
   bool _locationPermissionDenied = false;
+  String? username;
+  String? userEmail;
+  final String uid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
   @override
   void initState() {
     super.initState();
     _initializeMap();
+    fetchUserData();
     _getCurrentLocation();
     _loadNearbyDrivers();
+  }
+
+  Future<void> fetchUserData() async {
+    if (uid.isEmpty) return;
+    DatabaseReference usersRef = FirebaseDatabase.instance.ref().child("users").child(uid);
+
+    final snapshot = await usersRef.once();
+    final data = snapshot.snapshot.value;
+
+    if (data != null && data is Map) {
+      setState(() {
+        username = data["name"];
+        userEmail = data["email"];
+      });
+    }
   }
 
   Future<void> _initializeMap() async {
@@ -200,17 +220,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Guest User',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.headlineSmall?.copyWith(color: Colors.white),
+                    username ?? 'Guest User',
+                    style: Theme.of(context)
+                        .textTheme
+                        .headlineSmall
+                        ?.copyWith(color: Colors.white),
                   ),
                   Text(
-                    'guest@example.com',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(color: Colors.white70),
+                    userEmail ?? 'test123@gmail.com',
+                    style: Theme.of(context)
+                        .textTheme
+                        .headlineSmall
+                        ?.copyWith(color: Colors.white),
                   ),
+
                 ],
               ),
             ),
@@ -254,6 +277,7 @@ class _HomeScreenState extends State<HomeScreen> {
               leading: const Icon(Icons.logout),
               title: const Text('Logout'),
               onTap: () {
+                FirebaseAuth.instance.signOut();
                 context.push('/login');
               },
             ),
@@ -476,7 +500,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: AppTheme.backgroundColor,
                       child: InkWell(
                         onTap: () {
-                          context.push('/location_selection');
+                          context.push('/pickup_screen');
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(
@@ -527,7 +551,7 @@ class _HomeScreenState extends State<HomeScreen> {
             foregroundColor: AppTheme.primaryColor,
             child: const Icon(Icons.my_location),
           ),
-          const SizedBox(height: 100), // Space for the bottom card
+          const SizedBox(height: 100),
         ],
       ),
     );

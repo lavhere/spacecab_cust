@@ -2,15 +2,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-
 import '../../config/theme.dart';
 import '../../widgets/custom_button.dart';
 
 class VerifyOTPScreen extends StatefulWidget {
   final String phoneNumber;
 
-  const VerifyOTPScreen({Key? key, required this.phoneNumber})
-    : super(key: key);
+  const VerifyOTPScreen({super.key, required this.phoneNumber});
 
   @override
   State<VerifyOTPScreen> createState() => _VerifyOTPScreenState();
@@ -19,9 +17,9 @@ class VerifyOTPScreen extends StatefulWidget {
 class _VerifyOTPScreenState extends State<VerifyOTPScreen> {
   final List<TextEditingController> _controllers = List.generate(
     4,
-    (index) => TextEditingController(),
+    (_) => TextEditingController(),
   );
-  final List<FocusNode> _focusNodes = List.generate(4, (index) => FocusNode());
+  final List<FocusNode> _focusNodes = List.generate(4, (_) => FocusNode());
 
   int _resendTimerSeconds = 30;
   Timer? _resendTimer;
@@ -32,7 +30,6 @@ class _VerifyOTPScreenState extends State<VerifyOTPScreen> {
     super.initState();
     _startResendTimer();
 
-    // Setup focus listeners
     for (int i = 0; i < _focusNodes.length; i++) {
       _controllers[i].addListener(() {
         if (_controllers[i].text.length == 1 && i < _focusNodes.length - 1) {
@@ -69,7 +66,6 @@ class _VerifyOTPScreenState extends State<VerifyOTPScreen> {
   void _resendCode() {
     if (_resendTimerSeconds > 0) return;
 
-    // In a real app, this would resend the verification code
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('Verification code resent')));
@@ -101,7 +97,6 @@ class _VerifyOTPScreenState extends State<VerifyOTPScreen> {
       _isVerifying = true;
     });
 
-    // In a real app, this would verify the OTP with a backend service
     await Future.delayed(const Duration(seconds: 2));
 
     setState(() {
@@ -109,13 +104,15 @@ class _VerifyOTPScreenState extends State<VerifyOTPScreen> {
     });
 
     if (mounted) {
-      // For demo, let's just accept any 4-digit code
       context.go('/home');
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    final height = mediaQuery.size.height;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -123,96 +120,114 @@ class _VerifyOTPScreenState extends State<VerifyOTPScreen> {
         centerTitle: true,
         elevation: 0,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: 40),
-
-            // Verification icon
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.phone_android,
-                size: 40,
-                color: AppTheme.primaryColor,
-              ),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: height - kToolbarHeight - mediaQuery.padding.top,
             ),
+            child: IntrinsicHeight(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 40),
 
-            const SizedBox(height: 24),
-
-            // Title
-            const Text(
-              'Verification Code',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-            ),
-
-            const SizedBox(height: 8),
-
-            // Subtitle
-            Text(
-              'We have sent a verification code to ${widget.phoneNumber}',
-              style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
-              textAlign: TextAlign.center,
-            ),
-
-            const SizedBox(height: 32),
-
-            // OTP Input fields
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: List.generate(4, (index) => _buildOtpDigitField(index)),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Resend code option
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Didn\'t receive the code?',
-                  style: TextStyle(color: Colors.grey.shade600),
-                ),
-                TextButton(
-                  onPressed: _resendTimerSeconds > 0 ? null : _resendCode,
-                  child: Text(
-                    _resendTimerSeconds > 0
-                        ? 'Resend in $_resendTimerSeconds s'
-                        : 'Resend',
-                    style: TextStyle(
-                      color:
-                          _resendTimerSeconds > 0
-                              ? Colors.grey
-                              : AppTheme.primaryColor,
-                      fontWeight: FontWeight.bold,
+                  // Icon
+                  Center(
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.phone_android,
+                        size: 40,
+                        color: AppTheme.primaryColor,
+                      ),
                     ),
                   ),
-                ),
-              ],
+
+                  const SizedBox(height: 24),
+
+                  const Center(
+                    child: Text(
+                      'Verification Code',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  Center(
+                    child: Text(
+                      'We have sent a verification code to ${widget.phoneNumber}',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey.shade600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // OTP Input fields
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: List.generate(
+                      4,
+                      (index) => _buildOtpDigitField(index),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Didn\'t receive the code?',
+                        style: TextStyle(color: Colors.grey.shade600),
+                      ),
+                      TextButton(
+                        onPressed: _resendTimerSeconds > 0 ? null : _resendCode,
+                        child: Text(
+                          _resendTimerSeconds > 0
+                              ? 'Resend in $_resendTimerSeconds s'
+                              : 'Resend',
+                          style: TextStyle(
+                            color:
+                                _resendTimerSeconds > 0
+                                    ? Colors.grey
+                                    : AppTheme.primaryColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  SizedBox(height: height * 0.05),
+
+                  CustomButton(
+                    text: 'Verify',
+                    onPressed: () {
+                      if (!_isVerifying) {
+                        _verifyOTP();
+                      }
+                    },
+                    isLoading: _isVerifying,
+                  ),
+                ],
+              ),
             ),
-
-            const Spacer(),
-
-            // Verify button
-            CustomButton(
-              text: 'Verify',
-              onPressed: () {
-                if (!_isVerifying) {
-                  _verifyOTP();
-                }
-              },
-              isLoading: _isVerifying,
-            ),
-
-            const SizedBox(height: 20),
-          ],
+          ),
         ),
       ),
     );
@@ -248,7 +263,6 @@ class _VerifyOTPScreenState extends State<VerifyOTPScreen> {
           if (value.isEmpty && index > 0) {
             _focusNodes[index - 1].requestFocus();
           }
-
           if (value.isNotEmpty && index == 3) {
             _focusNodes[index].unfocus();
           }

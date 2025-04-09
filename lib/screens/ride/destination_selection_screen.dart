@@ -1,9 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../config/theme.dart';
-import '../../widgets/custom_app_bar.dart';
-import '../../widgets/custom_button.dart';
-import '../../widgets/location_search_box.dart';
 import '../../models/location_model.dart';
 
 class DestinationSelectionScreen extends StatefulWidget {
